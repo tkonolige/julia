@@ -575,6 +575,13 @@ function any(f, itr)
     end
     return false
 end
+# @inbounds allows the compiler to optimize out the loop in case f is constant
+function any(f, a::AbstractArray)
+    @inbounds for x in a
+        f(x) && return true
+    end
+    return false
+end
 
 """
     all(p, itr) -> Bool
@@ -596,6 +603,13 @@ false
 """
 function all(f, itr)
     for x in itr
+        f(x) || return false
+    end
+    return true
+end
+# @inbounds allows the compiler to optimize out the loop in case f is constant
+function all(f, a::AbstractArray)
+    @inbounds for x in a
         f(x) || return false
     end
     return true
@@ -666,6 +680,13 @@ function contains(eq::Function, itr, x)
     end
     return false
 end
+# @inbounds allows the compiler to optimize out the loop in case eq is constant
+function contains(eq::Function, a::AbstractArray, x)
+    @inbounds for y in a
+        eq(y, x) && return true
+    end
+    return false
+end
 
 
 ## countnz & count
@@ -693,10 +714,11 @@ function count(pred, itr)
     end
     return n
 end
+# @inbounds allows the compiler to optimize out the loop in case pred is constant
 function count(pred, a::AbstractArray)
     n = 0
-    for i in eachindex(a)
-        @inbounds n += pred(a[i])::Bool
+    @inbounds for x in a
+        n += pred(x)::Bool
     end
     return n
 end

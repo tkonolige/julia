@@ -572,6 +572,9 @@ for (fname, op) in [(:sum, :+), (:prod, :*),
         $(fname)(A::AbstractArray, region) = $(fname)(identity, A, region)
     end
 end
+# To fix ambiguities
+all(A::AbstractArray, region::AbstractArray) = all(identity, A, region)
+any(A::AbstractArray, region::AbstractArray) = any(identity, A, region)
 
 
 ##### findmin & findmax #####
