@@ -398,7 +398,6 @@ static Function *expect_func;
 static Function *jldlsym_func;
 static Function *jlnewbits_func;
 static Function *jltypeassert_func;
-static Function *jldepwarnpi_func;
 //static Function *jlgetnthfield_func;
 static Function *jlgetnthfieldchecked_func;
 //static Function *jlsetnthfield_func;
@@ -6790,13 +6789,6 @@ static void init_julia_llvm_env(Module *m)
                                         Function::ExternalLinkage,
                                         "jl_typeassert", m);
     add_named_global(jltypeassert_func, &jl_typeassert);
-
-    std::vector<Type*> argsdepwarnpi(0);
-    argsdepwarnpi.push_back(T_size);
-    jldepwarnpi_func = Function::Create(FunctionType::get(T_void, argsdepwarnpi, false),
-                                        Function::ExternalLinkage,
-                                        "jl_depwarn_partial_indexing", m);
-    add_named_global(jldepwarnpi_func, &jl_depwarn_partial_indexing);
 
     queuerootfun = Function::Create(FunctionType::get(T_void, args_1ptr, false),
                                     Function::ExternalLinkage,
