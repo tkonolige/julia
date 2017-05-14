@@ -59,6 +59,7 @@ end # os-test
     RandomDevice()
 
 Create a `RandomDevice` RNG object. Two such objects will always generate different streams of random numbers.
+The entropy is obtained from the operating system.
 """
 RandomDevice
 
@@ -85,16 +86,21 @@ mutable struct MersenneTwister <: AbstractRNG
     end
 end
 
-MersenneTwister(seed::Vector{UInt32}, state::DSFMT_state) =
+_MersenneTwister(seed=Vector{UInt32}(), state=DSFMT_state()) =
     MersenneTwister(seed, state, zeros(Float64, MTCacheLength), MTCacheLength)
 
 """
     MersenneTwister(seed)
+    MersenneTwister()
 
 Create a `MersenneTwister` RNG object. Different RNG objects can have their own seeds, which
 may be useful for generating different streams of random numbers.
+The `seed` may be a non-negative integer or a vector of `UInt32` integers.
+If no seed is provided, a random one is selected (using entropy from the system).
+See the [`srand`](@ref) function for reseeding an already existing `MersenneTwister` object.
 """
-MersenneTwister(seed) = srand(MersenneTwister(Vector{UInt32}(), DSFMT_state()), seed)
+MersenneTwister(seed) = srand(_MersenneTwister(), seed)
+MersenneTwister() = srand(_MersenneTwister())
 
 function copy!(dst::MersenneTwister, src::MersenneTwister)
     copy!(resize!(dst.seed, length(src.seed)), src.seed)
@@ -166,7 +172,7 @@ function randjump(mt::MersenneTwister, jumps::Integer, jumppoly::AbstractString)
     push!(mts, mt)
     for i in 1:jumps-1
         cmt = mts[end]
-        push!(mts, MersenneTwister(copy(cmt.seed), dSFMT.dsfmt_jump(cmt.state, jumppoly)))
+        push!(mts, _MersenneTwister(copy(cmt.seed), dSFMT.dsfmt_jump(cmt.state, jumppoly)))
     end
     return mts
 end
@@ -219,11 +225,16 @@ end
     srand([rng=GLOBAL_RNG], seed) -> rng
     srand([rng=GLOBAL_RNG]) -> rng
 
-Reseed the random number generator. If a `seed` is provided, the RNG will give a
-reproducible sequence of numbers, otherwise Julia will get entropy from the system. For
-`MersenneTwister`, the `seed` may be a non-negative integer or a vector of `UInt32` integers.
-`RandomDevice` does not support seeding.
+Reseed the random number generator. If a `seed` is provided, the RNG
+will give a reproducible sequence of numbers.
+After the call to `srand`, `rng` is equivalent to a newly created object
+with the same parameters (e.g.
+`MersenneTwister(1) == srand(MersenneTwister(), 1)`).
 """
+function srand end
+
+srand(r::RandomDevice) = r
+
 srand(r::MersenneTwister) = srand(r, make_seed())
 srand(r::MersenneTwister, n::Integer) = srand(r, make_seed(n))
 

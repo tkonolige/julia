@@ -37,8 +37,7 @@ A = zeros(UInt128, 2, 2)
 @test_throws BoundsError rand!(MersenneTwister(0), A, 5)
 
 # rand from AbstractArray
-let mt = MersenneTwister(0)
-    srand(mt)
+let mt = MersenneTwister()
     @test rand(mt, 0:3:1000) in 0:3:1000
     @test issubset(rand!(mt, Array{Int}(100), 0:3:1000), 0:3:1000)
     coll = Any[2, UInt128(128), big(619), "string"]
@@ -377,7 +376,7 @@ function hist(X,n)
 end
 
 # test uniform distribution of floats
-for rng in [srand(MersenneTwister(0)), RandomDevice()]
+for rng in [MersenneTwister(), RandomDevice()]
     for T in [Float16,Float32,Float64]
         # array version
         counts = hist(rand(rng, T, 2000), 4)
