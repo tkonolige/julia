@@ -1348,6 +1348,22 @@ end
 @deprecate srand(filename::AbstractString, n::Integer=4) srand(read!(filename, Array{UInt32}(Int(n))))
 @deprecate MersenneTwister(filename::AbstractString)  srand(MersenneTwister(0), read!(filename, Array{UInt32}(Int(4))))
 
+# 22031
+function hex2num(s::AbstractString)
+    depwarn("hex2num(s) is deprecated. Use reinterpret(Float64, parse(UInt64, s, 16)) instead.", :hex2num)
+    if length(s) <= 4
+        return reinterpret(Float16, parse(UInt16, s, 16))
+    end
+    if length(s) <= 8
+        return reinterpret(Float32, parse(UInt32, s, 16))
+    end
+    return reinterpret(Float64, parse(UInt64, s, 16))
+end
+
+@deprecate num2hex(x::Union{Float16,Float32,Float64}) =
+    hex(reintepret(Unsigned, x), sizeof(x)*2)
+@deprecate num2hex(n::Integer) = hex(n, sizeof(n)*2)
+
 # END 0.7 deprecations
 
 # BEGIN 1.0 deprecations
