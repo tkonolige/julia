@@ -23,17 +23,17 @@ endif
 FFTW_ENABLE_single := --enable-single
 FFTW_ENABLE_double :=
 
-$(SRCDIR)/srccache/fftw-$(FFTW_VER).tar.gz: | $(SRCDIR)/srccache
+$(SRCCACHE)/fftw-$(FFTW_VER).tar.gz: | $(SRCCACHE)
 	$(JLDOWNLOAD) $@ http://www.fftw.org/$(notdir $@)
 
-$(SRCDIR)/srccache/fftw-$(FFTW_VER)/source-extracted: $(SRCDIR)/srccache/fftw-$(FFTW_VER).tar.gz
+$(SRCCACHE)/fftw-$(FFTW_VER)/source-extracted: $(SRCCACHE)/fftw-$(FFTW_VER).tar.gz
 	$(JLCHECKSUM) $<
 	mkdir -p $(dir $@) && \
 	$(TAR) -C $(dir $@) --strip-components 1 -xf $<
-	touch -c $(SRCDIR)/srccache/fftw-$(FFTW_VER)/configure # old target
+	touch -c $(SRCCACHE)/fftw-$(FFTW_VER)/configure # old target
 	echo 1 > $@
 
-$(BUILDDIR)/fftw-$(FFTW_VER)-%/build-configured: $(SRCDIR)/srccache/fftw-$(FFTW_VER)/source-extracted
+$(BUILDDIR)/fftw-$(FFTW_VER)-%/build-configured: $(SRCCACHE)/fftw-$(FFTW_VER)/source-extracted
 	mkdir -p $(dir $@)
 	@# try to configure with avx support. if that fails, try again without it
 	cd $(dir $@) && \
@@ -83,7 +83,7 @@ clean-fftw-%:
 	-$(MAKE) -C $(BUILDDIR)/fftw-$(FFTW_VER)-$* clean
 
 distclean-fftw: distclean-fftw-single distclean-fftw-double
-	-rm -rf $(SRCDIR)/srccache/fftw-$(FFTW_VER).tar.gz $(SRCDIR)/srccache/fftw-$(FFTW_VER)
+	-rm -rf $(SRCCACHE)/fftw-$(FFTW_VER).tar.gz $(SRCCACHE)/fftw-$(FFTW_VER)
 distclean-fftw-single:
 	-rm -rf $(BUILDDIR)/fftw-$(FFTW_VER)-single
 distclean-fftw-double:
@@ -101,15 +101,15 @@ uninstall-fftw: uninstall-fftw-single uninstall-fftw-double
 reinstall-fftw: reinstall-fftw-single reinstall-fftw-double
 
 
-get-fftw-single: $(SRCDIR)/srccache/fftw-$(FFTW_VER).tar.gz
-extract-fftw-single: $(SRCDIR)/srccache/fftw-$(FFTW_VER)/source-extracted
+get-fftw-single: $(SRCCACHE)/fftw-$(FFTW_VER).tar.gz
+extract-fftw-single: $(SRCCACHE)/fftw-$(FFTW_VER)/source-extracted
 configure-fftw-single: $(BUILDDIR)/fftw-$(FFTW_VER)-single/build-configured
 compile-fftw-single: $(BUILDDIR)/fftw-$(FFTW_VER)-single/build-compiled
 fastcheck-fftw-single: #none
 check-fftw-single: $(BUILDDIR)/fftw-$(FFTW_VER)-single/build-checked
 
-get-fftw-double: $(SRCDIR)/srccache/fftw-$(FFTW_VER).tar.gz
-extract-fftw-double: $(SRCDIR)/srccache/fftw-$(FFTW_VER)/source-extracted
+get-fftw-double: $(SRCCACHE)/fftw-$(FFTW_VER).tar.gz
+extract-fftw-double: $(SRCCACHE)/fftw-$(FFTW_VER)/source-extracted
 configure-fftw-double: $(BUILDDIR)/fftw-$(FFTW_VER)-double/build-configured
 compile-fftw-double: $(BUILDDIR)/fftw-$(FFTW_VER)-double/build-compiled
 fastcheck-fftw-double: #none
