@@ -840,3 +840,9 @@ end
 @testset "checkbounds_indices method ambiguities #20989" begin
     @test Base.checkbounds_indices(Bool, (1:1,), ([CartesianIndex(1)],))
 end
+
+@testset "ImageCore #40" begin
+    Base.convert(::Type{Array{T,n}}, a::Array) where {T<:Number,n} =
+        copy!(Array{T,n}(size(a)), a)
+    @test isa(similar(dest,  Pair{Union{},Union{}}), Dict{Union{}, Union{}})
+end
