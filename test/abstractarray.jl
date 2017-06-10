@@ -844,5 +844,5 @@ end
 @testset "ImageCore #40" begin
     Base.convert(::Type{Array{T,n}}, a::Array) where {T<:Number,n} =
         copy!(Array{T,n}(size(a)), a)
-    @test isa(similar(dest,  Pair{Union{},Union{}}), Dict{Union{}, Union{}})
+    @test isa(similar(Dict(:a=>1, :b=>2.0), Pair{Union{},Union{}}), Dict{Union{}, Union{}})
 end
