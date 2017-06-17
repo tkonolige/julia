@@ -132,6 +132,8 @@ Base.collect(::Type, ::Any)
 Base.issubset(::Any, ::Any)
 Base.filter
 Base.filter!
+Base.replace
+Base.replace!
 ```
 
 ## Indexable Collections
