@@ -2185,7 +2185,7 @@ julia> replace!(x->true, x->2x, Set([3, 6]))
 Set([12])
 ```
 """
-function replace!(pred::Callable, new::Callable, A::AbstractArray, n::Integer=typemax(Int))
+function replace!(pred::Callable, new::Callable, A, n::Integer=typemax(Int))
     n < 0 && throw(DomainError())
     n == 0 && return A
     _replace!(pred, new, A, clamp(n, 0, typemax(Int)))
@@ -2213,6 +2213,17 @@ Return a copy of collection `A` where all occurrences of `old` are
 replaced by `new`.
 If `n` is specified, then replace at most `n` occurrences.
 See also [`replace!`](@ref).
+
+# Examples
+
+```jldoctest
+julia> replace([1, 2, 1, 3], 1, 0, 2)
+4-element Array{Int64,1}:
+ 0
+ 2
+ 0
+ 3
+```
 """
 replace(A, old, new, n::Integer=typemax(Int)) = replace!(copy(A), old, new, n)
 
@@ -2226,7 +2237,7 @@ If `n` is specified, then replace at most `n` occurrences.
 
 # Examples
 ```jldoctest
-julia> replace!(isodd, [1, 2, 3, 1], 0, 2)
+julia> replace(isodd, [1, 2, 3, 1], 0, 2)
 4-element Array{Int64,1}:
  0
  2
