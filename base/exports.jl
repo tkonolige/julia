@@ -799,6 +799,7 @@ export
     randstring,
     repeat,
     replace,
+    replace!,
     repr,
     reverseind,
     rpad,
@@ -1308,9 +1309,6 @@ export
     rowvals,
     nzrange,
     nnz,
-
-# Algorithms module re-exports
-    replace!,
 
 # Distributed module re-exports
     @spawn,
