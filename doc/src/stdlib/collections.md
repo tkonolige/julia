@@ -132,7 +132,8 @@ Base.collect(::Type, ::Any)
 Base.issubset(::Any, ::Any)
 Base.filter
 Base.filter!
-# this also includes the docstring for replace(A, ::Pair...)
+Base.replace(::Any, ::Pair...)
+Base.replace(::Base.Callable, ::Any, ::Any)
 Base.replace(::Base.Callable, ::Any)
 Base.replace!
 ```
