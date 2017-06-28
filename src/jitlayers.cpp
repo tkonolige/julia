@@ -93,7 +93,7 @@ void jl_init_jit(Type *T_pjlvalue_)
 // Except for parts of this file which were copied from LLVM, under the UIUC license (marked below).
 
 // this defines the set of optimization passes defined for Julia at various optimization levels
-void addOptimizationPasses(legacy::PassManagerBase *PM, int opt_level)
+void addOptimizationPasses(legacy::PassManagerBase *PM, int opt_level, TargetMachine *TM)
 {
 #ifdef JL_DEBUG_BUILD
     PM->add(createGCInvariantVerifierPass(true));
@@ -132,7 +132,7 @@ void addOptimizationPasses(legacy::PassManagerBase *PM, int opt_level)
         return;
     }
     PM->add(createPropagateJuliaAddrspaces());
-    PM->add(createTargetTransformInfoWrapperPass(jl_TargetMachine->getTargetIRAnalysis()));
+    PM->add(createTargetTransformInfoWrapperPass(TM->getTargetIRAnalysis()));
     PM->add(createTypeBasedAAWrapperPass());
     if (jl_options.opt_level >= 3) {
         PM->add(createBasicAAWrapperPass());
@@ -245,8 +245,10 @@ void addOptimizationPasses(legacy::PassManagerBase *PM, int opt_level)
 }
 
 extern "C" JL_DLLEXPORT
-void jl_add_optimization_passes(LLVMPassManagerRef PM, int opt_level) {
-    addOptimizationPasses(unwrap(PM), opt_level);
+void jl_add_optimization_passes(LLVMPassManagerRef PM, int opt_level,
+                                LLVMTargetMachineRef TM) {
+    // LLVM doesn't have a public unwrap for LLVMTargetMachineRef
+    addOptimizationPasses(unwrap(PM), opt_level, reinterpret_cast<TargetMachine *>(TM));
 }
 
 // ------------------------ TEMPORARILY COPIED FROM LLVM -----------------

@@ -41,7 +41,8 @@ extern size_t jltls_offset_idx;
 
 typedef struct {Value *gv; int32_t index;} jl_value_llvm; // uses 1-based indexing
 
-void addOptimizationPasses(legacy::PassManagerBase *PM, int opt_level);
+void addOptimizationPasses(legacy::PassManagerBase *PM, int opt_level,
+                           TargetMachine *TM=jl_TargetMachine);
 void* jl_emit_and_add_to_shadow(GlobalVariable *gv, void *gvarinit = NULL);
 GlobalVariable *jl_emit_sysimg_slot(Module *m, Type *typ, const char *name,
                                     uintptr_t init, size_t &idx);
