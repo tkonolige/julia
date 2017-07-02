@@ -13,6 +13,10 @@ Language changes
   * The syntax `1.+2` is deprecated, since it is ambiguous: it could mean either
     `1 .+ 2` (the current meaning) or `1. + 2` ([#19089]).
 
+  * In `for i = ...`, if a local variable `i` already existed it would be overwritten
+    during the loop. This behavior is deprecated, and in the future `for` loop variables
+    will always be new variables local to the loop ([#22314]).
+
 Breaking changes
 ----------------
 

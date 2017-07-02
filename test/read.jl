@@ -138,6 +138,7 @@ verbose = false
 
 
 for (name, f) in l
+    local f
     io = ()->(s=f(text); push!(open_streams, s); s)
 
     write(filename, text)
@@ -176,13 +177,14 @@ for (name, f) in l
     old_text = text
     cleanup()
 
-    for text in [
+    for text_ in [
         old_text,
         String(Char['A' + i % 52 for i in 1:(div(Base.SZ_UNBUFFERED_IO,2))]),
         String(Char['A' + i % 52 for i in 1:(    Base.SZ_UNBUFFERED_IO -1)]),
         String(Char['A' + i % 52 for i in 1:(    Base.SZ_UNBUFFERED_IO   )]),
         String(Char['A' + i % 52 for i in 1:(    Base.SZ_UNBUFFERED_IO +1)])
     ]
+        text = text_
         write(filename, text)
 
         verbose && println("$name readstring...")
@@ -311,7 +313,7 @@ function test_read_nbyte()
     fn = tempname()
     # Write one byte. One byte read should work once
     # but 2-byte read should throw EOFError.
-    f = open(fn, "w+") do f
+    open(fn, "w+") do f
         write(f, 0x55)
         flush(f)
         seek(f, 0)
