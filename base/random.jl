@@ -26,7 +26,9 @@ struct CloseOpen{  T<:AbstractFloat} <: FloatInterval{T} end # interval [0,1)
 struct Close1Open2{T<:AbstractFloat} <: FloatInterval{T} end # interval [1,2)
 
 CloseOpen() = CloseOpen{Float64}()
+CloseOpen(::Type{T}) where {T<:AbstractFloat} = CloseOpen{T}()
 Close1Open2() = Close1Open2{Float64}()
+Close1Open2(::Type{T}) where {T<:AbstractFloat} = Close1Open2{T}()
 
 ## RandomDevice
 
@@ -374,17 +376,18 @@ rand(r::AbstractArray, dims::Integer...) = rand(GLOBAL_RNG, r, convert(Dims, dim
 @inline rand(r::AbstractRNG) = rand(r, CloseOpen())
 
 # MersenneTwister & RandomDevice
-@inline rand(r::Union{RandomDevice,MersenneTwister}, ::Type{Float64}) = rand(r, CloseOpen())
+@inline rand(r::Union{RandomDevice,MersenneTwister}, ::Type{T}) where {T<:AbstractFloat} =
+    rand(r, CloseOpen(T))
 
 rand_ui10_raw(r::MersenneTwister) = rand_ui52_raw(r)
 rand_ui23_raw(r::MersenneTwister) = rand_ui52_raw(r)
 rand_ui10_raw(r::AbstractRNG)    = rand(r, UInt16)
 rand_ui23_raw(r::AbstractRNG)    = rand(r, UInt32)
 
-rand(r::Union{RandomDevice,MersenneTwister}, ::Type{Float16}) =
+rand(r::Union{RandomDevice,MersenneTwister}, ::CloseOpen{Float16}) =
     Float16(reinterpret(Float32, (rand_ui10_raw(r) % UInt32 << 13) & 0x007fe000 | 0x3f800000) - 1)
 
-rand(r::Union{RandomDevice,MersenneTwister}, ::Type{Float32}) =
+rand(r::Union{RandomDevice,MersenneTwister}, ::CloseOpen{Float32}) =
     reinterpret(Float32, rand_ui23_raw(r) % UInt32 & 0x007fffff | 0x3f800000) - 1
 
 
@@ -479,7 +482,11 @@ end
 
 rand!(A::AbstractArray, ::Type{X}) where {X} = rand!(GLOBAL_RNG, A, X)
 
-function rand!(r::AbstractRNG, A::AbstractArray, s::Union{Dict,Set,IntSet})
+rand!(r::AbstractRNG, A::AbstractArray, ::Type{T}) where {T<:AbstractFloat} =
+    rand!(r, A, CloseOpen{T}())
+rand!(A::AbstractArray, ::Type{T}) where {T<:AbstractFloat} = rand!(GLOBAL_RNG, A, T)
+
+function rand!(r::AbstractRNG, A::AbstractArray, s::Union{Dict,Set,IntSet,FloatInterval})
     for i in eachindex(A)
         @inbounds A[i] = rand(r, s)
     end
@@ -489,13 +496,84 @@ end
 # avoid linear complexity for repeated calls with generic containers
 rand!(r::AbstractRNG, A::AbstractArray, s::Union{Associative,AbstractSet}) = rand!(r, A, collect(s))
 
-rand!(A::AbstractArray, s::Union{Associative,AbstractSet}) = rand!(GLOBAL_RNG, A, s)
+rand!(A::AbstractArray, s::Union{Associative,AbstractSet,FloatInterval}) = rand!(GLOBAL_RNG, A, s)
 
 rand(r::AbstractRNG, s::Associative{K,V}, dims::Dims) where {K,V} = rand!(r, Array{Pair{K,V}}(dims), s)
 rand(r::AbstractRNG, s::AbstractSet{T}, dims::Dims) where {T} = rand!(r, Array{T}(dims), s)
 rand(r::AbstractRNG, s::Union{Associative,AbstractSet}, dims::Integer...) = rand(r, s, convert(Dims, dims))
 rand(s::Union{Associative,AbstractSet}, dims::Integer...) = rand(GLOBAL_RNG, s, convert(Dims, dims))
 rand(s::Union{Associative,AbstractSet}, dims::Dims) = rand(GLOBAL_RNG, s, dims)
+
+# BigFloat
+
+const bits_in_Limb = sizeof(Limb)<<3
+const Limb_high_bit = one(Limb) << (bits_in_Limb-1)
+
+struct BigFloatRandGenerator
+    prec::Int
+    nlimbs::Int
+    limbs::Vector{Limb}
+    shift::UInt
+
+    function BigFloatRandGenerator(prec::Int=precision(BigFloat))
+        nlimbs = (prec-1) ÷ bits_in_Limb + 1
+        limbs = Vector{Limb}(nlimbs)
+        shift = nlimbs * bits_in_Limb - prec
+        new(prec, nlimbs, limbs, shift)
+    end
+end
+
+function _rand_BigFloat(rng::AbstractRNG, gen::BigFloatRandGenerator)
+    z = BigFloat()
+    limbs = gen.limbs
+    rand!(rng, limbs)
+    @inbounds begin
+        limbs[1] <<= gen.shift
+        randbool = iszero(limbs[end] & Limb_high_bit)
+        limbs[end] |= Limb_high_bit
+    end
+    z.sign = 1
+    unsafe_copy!(z.d, pointer(limbs), gen.nlimbs)
+    (z, randbool)
+end
+
+function rand(rng::AbstractRNG, ::Close1Open2{BigFloat},
+              gen::BigFloatRandGenerator=BigFloatRandGenerator())
+    z = _rand_BigFloat(rng, gen)[1]
+    z.exp = 1
+    z
+end
+
+
+function rand(rng::AbstractRNG, ::CloseOpen{BigFloat},
+              gen::BigFloatRandGenerator=BigFloatRandGenerator())
+    z, randbool = _rand_BigFloat(rng, gen)
+    z.exp = 0
+    randbool &&
+        ccall((:mpfr_sub_d, :libmpfr), Int32,
+              (Ptr{BigFloat}, Ptr{BigFloat}, Cdouble, Int32),
+              &z, &z, 0.5, Base.MPFR.ROUNDING_MODE[])
+    z
+end
+
+#= alternative, with 1 bit less of precision
+function rand(rng::AbstractRNG, ::CloseOpen{BigFloat},
+              gen::BigFloatRandGenerator=BigFloatRandGenerator())
+    z = rand(rng, Close1Open2(BigFloat), gen)
+    ccall((:mpfr_sub_ui, :libmpfr), Int32, (Ptr{BigFloat}, Ptr{BigFloat}, Culong, Int32),
+          &z, &z, 1, Base.MPFR.ROUNDING_MODE[])
+    z
+end
+=#
+
+function rand!(rng::AbstractRNG, A::AbstractArray,
+               I::Union{Close1Open2{BigFloat},CloseOpen{BigFloat}})
+    gen = BigFloatRandGenerator()
+    for i in eachindex(A)
+        @inbounds A[i] = rand(rng, I, gen)
+    end
+    A
+end
 
 # MersenneTwister
 

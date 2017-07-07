@@ -308,7 +308,11 @@ end
 for rng in ([], [MersenneTwister(0)], [RandomDevice()])
     ftypes = [Float16, Float32, Float64]
     cftypes = [Complex32, Complex64, Complex128, ftypes...]
-    types = [Bool, Char, Base.BitInteger_types..., ftypes...]
+    types = [Bool, Char, BigFloat, Base.BitInteger_types..., ftypes...]
+    funtypes = Dict(rand  => types, randn  => cftypes, randexp  => ftypes,
+                    rand! => types, randn! => cftypes, randexp! => ftypes)
+
+
     randset = Set(rand(Int, 20))
     randdict = Dict(zip(rand(Int,10), rand(Int, 10)))
     collections = [IntSet(rand(1:100, 20)) => Int,
@@ -330,7 +334,7 @@ for rng in ([], [MersenneTwister(0)], [RandomDevice()])
         f(rng..., 2, 3)               ::Array{Float64, 2}
         f(rng..., b2, u3)             ::Array{Float64, 2}
         f(rng..., (2, 3))             ::Array{Float64, 2}
-        for T in (f === rand ? types : f === randn ? cftypes : ftypes)
+        for T in funtypes[f]
             a0 = f(rng..., T)         ::T
             a1 = f(rng..., T, 5)      ::Vector{T}
             a2 = f(rng..., T, 2, 3)   ::Array{T, 2}
@@ -368,7 +372,7 @@ for rng in ([], [MersenneTwister(0)], [RandomDevice()])
         @test_throws ArgumentError rand(rng..., C, 5)
     end
     for f! in [rand!, randn!, randexp!]
-        for T in (f! === rand! ? types : f! === randn! ? cftypes : ftypes)
+        for T in funtypes[f!]
             X = T == Bool ? T[0,1] : T[0,1,2]
             for A in (Array{T}(5), Array{T}(2, 3))
                 f!(rng..., A)                    ::typeof(A)
@@ -407,17 +411,19 @@ for rng in ([], [MersenneTwister(0)], [RandomDevice()])
     end
 end
 
-function hist(X,n)
-    v = zeros(Int,n)
+function hist(X, n)
+    v = zeros(Int, n)
     for x in X
-        v[floor(Int,x*n)+1] += 1
+        v[floor(Int, x*n) + 1] += 1
     end
     v
 end
 
 # test uniform distribution of floats
-for rng in [srand(MersenneTwister(0)), RandomDevice()]
-    for T in [Float16,Float32,Float64]
+for rng in [srand(MersenneTwister(0)), RandomDevice()],
+        T in [Float16, Float32, Float64, BigFloat],
+            prec in T == BigFloat ? [3, 53, 64, 100, 256, 1000] : [256]
+    setprecision(BigFloat, prec) do
         # array version
         counts = hist(rand(rng, T, 2000), 4)
         @test minimum(counts) > 300 # should fail with proba < 1e-26
