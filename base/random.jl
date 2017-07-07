@@ -21,10 +21,12 @@ export srand,
 
 abstract type AbstractRNG end
 
-abstract type FloatInterval end
-mutable struct CloseOpen <: FloatInterval end
-mutable struct Close1Open2 <: FloatInterval end
+abstract type FloatInterval{T<:AbstractFloat} end
+struct CloseOpen{  T<:AbstractFloat} <: FloatInterval{T} end # interval [0,1)
+struct Close1Open2{T<:AbstractFloat} <: FloatInterval{T} end # interval [1,2)
 
+CloseOpen() = CloseOpen{Float64}()
+Close1Open2() = Close1Open2{Float64}()
 
 ## RandomDevice
 
@@ -65,10 +67,10 @@ Create a `RandomDevice` RNG object. Two such objects will always generate differ
 RandomDevice
 
 
-rand(rng::RandomDevice, ::Type{Close1Open2}) =
+rand(rng::RandomDevice, ::Close1Open2{Float64}) =
     reinterpret(Float64, 0x3ff0000000000000 | rand(rng, UInt64) & 0x000fffffffffffff)
 
-rand(rng::RandomDevice, ::Type{CloseOpen}) = rand(rng, Close1Open2) - 1.0
+rand(rng::RandomDevice, ::CloseOpen{Float64}) = rand(rng, Close1Open2()) - 1.0
 
 
 ## MersenneTwister
@@ -152,14 +154,16 @@ end
 @inline reserve(r::MersenneTwister, n::Int) = (mt_avail(r) < n && gen_rand(r); nothing)
 
 # precondition: !mt_empty(r)
-@inline rand_inbounds(r::MersenneTwister, ::Type{Close1Open2}) = mt_pop!(r)
-@inline rand_inbounds(r::MersenneTwister, ::Type{CloseOpen}) = rand_inbounds(r, Close1Open2) - 1.0
-@inline rand_inbounds(r::MersenneTwister) = rand_inbounds(r, CloseOpen)
+@inline rand_inbounds(r::MersenneTwister, ::Close1Open2{Float64}) = mt_pop!(r)
+@inline rand_inbounds(r::MersenneTwister, ::CloseOpen{Float64}) =
+    rand_inbounds(r, Close1Open2()) - 1.0
+@inline rand_inbounds(r::MersenneTwister) = rand_inbounds(r, CloseOpen())
 
 # produce Float64 values
-@inline rand(r::MersenneTwister, ::Type{I}) where {I<:FloatInterval} = (reserve_1(r); rand_inbounds(r, I))
+@inline rand(r::MersenneTwister, I::FloatInterval{Float64}) = (reserve_1(r); rand_inbounds(r, I))
 
-@inline rand_ui52_raw_inbounds(r::MersenneTwister) = reinterpret(UInt64, rand_inbounds(r, Close1Open2))
+@inline rand_ui52_raw_inbounds(r::MersenneTwister) =
+    reinterpret(UInt64, rand_inbounds(r, Close1Open2()))
 @inline rand_ui52_raw(r::MersenneTwister) = (reserve_1(r); rand_ui52_raw_inbounds(r))
 @inline rand_ui2x52_raw(r::MersenneTwister) = rand_ui52_raw(r) % UInt128 << 64 | rand_ui52_raw(r)
 
@@ -327,7 +331,7 @@ julia> rand(MersenneTwister(0), Dict(1=>2, 3=>4))
     collect(s))` instead, or either `rand(rng, Dict(s))` or `rand(rng,
     Set(s))` as appropriate.
 """
-@inline rand() = rand(GLOBAL_RNG, CloseOpen)
+@inline rand() = rand(GLOBAL_RNG, CloseOpen())
 @inline rand(T::Type) = rand(GLOBAL_RNG, T)
 rand(dims::Dims) = rand(GLOBAL_RNG, dims)
 rand(dims::Integer...) = rand(convert(Dims, dims))
@@ -367,10 +371,10 @@ rand(r::AbstractArray, dims::Integer...) = rand(GLOBAL_RNG, r, convert(Dims, dim
 
 ## random floating point values
 
-@inline rand(r::AbstractRNG) = rand(r, CloseOpen)
+@inline rand(r::AbstractRNG) = rand(r, CloseOpen())
 
 # MersenneTwister & RandomDevice
-@inline rand(r::Union{RandomDevice,MersenneTwister}, ::Type{Float64}) = rand(r, CloseOpen)
+@inline rand(r::Union{RandomDevice,MersenneTwister}, ::Type{Float64}) = rand(r, CloseOpen())
 
 rand_ui10_raw(r::MersenneTwister) = rand_ui52_raw(r)
 rand_ui23_raw(r::MersenneTwister) = rand_ui52_raw(r)
@@ -386,7 +390,7 @@ rand(r::Union{RandomDevice,MersenneTwister}, ::Type{Float32}) =
 
 ## random integers
 
-@inline rand_ui52_raw(r::AbstractRNG) = reinterpret(UInt64, rand(r, Close1Open2))
+@inline rand_ui52_raw(r::AbstractRNG) = reinterpret(UInt64, rand(r, Close1Open2()))
 @inline rand_ui52(r::AbstractRNG) = rand_ui52_raw(r) & 0x000fffffffffffff
 
 # MersenneTwister
@@ -496,7 +500,7 @@ rand(s::Union{Associative,AbstractSet}, dims::Dims) = rand(GLOBAL_RNG, s, dims)
 # MersenneTwister
 
 function rand_AbstractArray_Float64!(r::MersenneTwister, A::AbstractArray{Float64},
-                                     n=length(A), ::Type{I}=CloseOpen) where I<:FloatInterval
+                                     n=length(A), I::FloatInterval{Float64}=CloseOpen())
     # what follows is equivalent to this simple loop but more efficient:
     # for i=1:n
     #     @inbounds A[i] = rand(r, I)
@@ -519,10 +523,13 @@ end
 
 rand!(r::MersenneTwister, A::AbstractArray{Float64}) = rand_AbstractArray_Float64!(r, A)
 
-fill_array!(s::DSFMT_state, A::Ptr{Float64}, n::Int, ::Type{CloseOpen}) = dsfmt_fill_array_close_open!(s, A, n)
-fill_array!(s::DSFMT_state, A::Ptr{Float64}, n::Int, ::Type{Close1Open2}) = dsfmt_fill_array_close1_open2!(s, A, n)
+fill_array!(s::DSFMT_state, A::Ptr{Float64}, n::Int, ::CloseOpen{Float64}) =
+    dsfmt_fill_array_close_open!(s, A, n)
+fill_array!(s::DSFMT_state, A::Ptr{Float64}, n::Int, ::Close1Open2{Float64}) =
+    dsfmt_fill_array_close1_open2!(s, A, n)
 
-function rand!(r::MersenneTwister, A::Array{Float64}, n::Int=length(A), ::Type{I}=CloseOpen) where I<:FloatInterval
+function rand!(r::MersenneTwister, A::Array{Float64}, n::Int=length(A),
+               I::FloatInterval{Float64}=CloseOpen())
     # depending on the alignment of A, the data written by fill_array! may have
     # to be left-shifted by up to 15 bytes (cf. unsafe_copy! below) for
     # reproducibility purposes;
@@ -555,11 +562,13 @@ end
 @inline mask128(u::UInt128, ::Type{Float16}) = (u & 0x03ff03ff03ff03ff03ff03ff03ff03ff) | 0x3c003c003c003c003c003c003c003c00
 @inline mask128(u::UInt128, ::Type{Float32}) = (u & 0x007fffff007fffff007fffff007fffff) | 0x3f8000003f8000003f8000003f800000
 
-function rand!(r::MersenneTwister, A::Union{Array{Float16},Array{Float32}}, ::Type{Close1Open2})
+function rand!(r::MersenneTwister, A::Union{Array{Float16},Array{Float32}},
+               ::Close1Open2{Float64})
     T = eltype(A)
     n = length(A)
     n128 = n * sizeof(T) ÷ 16
-    rand!(r, unsafe_wrap(Array, convert(Ptr{Float64}, pointer(A)), 2*n128), 2*n128, Close1Open2)
+    rand!(r, unsafe_wrap(Array, convert(Ptr{Float64}, pointer(A)), 2*n128), 2*n128,
+          Close1Open2())
     A128 = unsafe_wrap(Array, convert(Ptr{UInt128}, pointer(A)), n128)
     @inbounds for i in 1:n128
         u = A128[i]
@@ -580,8 +589,9 @@ function rand!(r::MersenneTwister, A::Union{Array{Float16},Array{Float32}}, ::Ty
     A
 end
 
-function rand!(r::MersenneTwister, A::Union{Array{Float16},Array{Float32}}, ::Type{CloseOpen})
-    rand!(r, A, Close1Open2)
+function rand!(r::MersenneTwister, A::Union{Array{Float16},Array{Float32}},
+               ::CloseOpen{Float64})
+    rand!(r, A, Close1Open2())
     I32 = one(Float32)
     for i in eachindex(A)
         @inbounds A[i] = Float32(A[i])-I32 # faster than "A[i] -= one(T)" for T==Float16
@@ -589,7 +599,7 @@ function rand!(r::MersenneTwister, A::Union{Array{Float16},Array{Float32}}, ::Ty
     A
 end
 
-rand!(r::MersenneTwister, A::Union{Array{Float16},Array{Float32}}) = rand!(r, A, CloseOpen)
+rand!(r::MersenneTwister, A::Union{Array{Float16},Array{Float32}}) = rand!(r, A, CloseOpen())
 
 function rand!(r::MersenneTwister, A::Array{UInt128}, n::Int=length(A))
     if n > length(A)
@@ -598,7 +608,7 @@ function rand!(r::MersenneTwister, A::Array{UInt128}, n::Int=length(A))
     Af = unsafe_wrap(Array, convert(Ptr{Float64}, pointer(A)), 2n)
     i = n
     while true
-        rand!(r, Af, 2i, Close1Open2)
+        rand!(r, Af, 2i, Close1Open2())
         n < 5 && break
         i = 0
         @inbounds while n-i >= 5
