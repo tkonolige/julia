@@ -484,7 +484,6 @@ rand!(A::AbstractArray, ::Type{X}) where {X} = rand!(GLOBAL_RNG, A, X)
 
 rand!(r::AbstractRNG, A::AbstractArray, ::Type{T}) where {T<:AbstractFloat} =
     rand!(r, A, CloseOpen{T}())
-rand!(A::AbstractArray, ::Type{T}) where {T<:AbstractFloat} = rand!(GLOBAL_RNG, A, T)
 
 function rand!(r::AbstractRNG, A::AbstractArray, s::Union{Dict,Set,IntSet,FloatInterval})
     for i in eachindex(A)

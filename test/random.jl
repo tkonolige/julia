@@ -422,7 +422,7 @@ end
 # test uniform distribution of floats
 for rng in [srand(MersenneTwister(0)), RandomDevice()],
         T in [Float16, Float32, Float64, BigFloat],
-            prec in T == BigFloat ? [3, 53, 64, 100, 256, 1000] : [256]
+            prec in (T == BigFloat ? [3, 53, 64, 100, 256, 1000] : [256])
     setprecision(BigFloat, prec) do
         # array version
         counts = hist(rand(rng, T, 2000), 4)
