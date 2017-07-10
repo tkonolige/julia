@@ -95,6 +95,8 @@ Library improvements
     `ntuple`, `Base.literal_pow`, `sqrtm`, `lufact`, `lufact!`, `qrfact`, `qrfact!`,
     `cholfact`, `cholfact!`, `_broadcast!`, `reshape`, `cat` and `cat_t`.
 
+  * `BigFloat` random numbers can now be generated ([#22720]).
+
 Compiler/Runtime improvements
 -----------------------------
 
