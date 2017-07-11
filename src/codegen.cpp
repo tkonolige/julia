@@ -2610,18 +2610,34 @@ static bool emit_builtin_call(jl_codectx_t &ctx, jl_cgval_t *ret, jl_value_t *f,
         if (jl_is_array_type(aty_dt) && indexes_ok) {
             jl_value_t *ety = jl_tparam0(aty_dt);
             if (!jl_has_free_typevars(ety)) { // TODO: jn/foreigncall branch has a better predicate
-                if (!jl_array_store_unboxed(ety))
+                size_t elsz = 0, al = 0;
+                bool isboxed = !jl_islayout_inline(ety, &elsz, &al);
+                if (isboxed)
                     ety = (jl_value_t*)jl_any_type;
                 jl_value_t *ndp = jl_tparam1(aty_dt);
                 if (jl_is_long(ndp) || nargs==2) {
                     jl_cgval_t ary = emit_expr(ctx, args[1]);
                     ssize_t nd = jl_is_long(ndp) ? jl_unbox_long(ndp) : -1;
                     Value *idx = emit_array_nd_index(ctx, ary, args[1], nd, &args[2], nargs - 1);
-                    if (jl_array_store_unboxed(ety) &&
-                        jl_datatype_size(ety) == 0) {
-                        assert(jl_is_datatype(ety));
+                    if (!isboxed && jl_is_datatype(ety) && jl_datatype_size(ety) == 0) {
                         assert(((jl_datatype_t*)ety)->instance != NULL);
                         *ret = ghostValue(ety);
+                    }
+                    else if (!isboxed && jl_is_uniontype(ety)) {
+                        Value *nbytes = ConstantInt::get(T_size, elsz);
+                        Value *data = emit_bitcast(ctx, emit_arrayptr(ctx, ary, args[1]), T_pint8);
+                        // isbits union selector bytes are stored directly after the last array element
+                        Value *selidx = ctx.builder.CreateMul(emit_arraylen_prim(ctx, ary), nbytes);
+                        selidx = ctx.builder.CreateAdd(selidx, idx);
+                        Value *ptindex = ctx.builder.CreateGEP(T_int8, data, selidx);
+                        Value *tindex = ctx.builder.CreateNUWAdd(ConstantInt::get(T_int8, 1), ctx.builder.CreateLoad(T_int8, ptindex));
+                        Type *AT = ArrayType::get(IntegerType::get(jl_LLVMContext, 8 * al), (elsz + al - 1) / al);
+                        AllocaInst *lv = emit_static_alloca(ctx, AT);
+                        if (al > 1)
+                            lv->setAlignment(al);
+                        Value *elidx = ctx.builder.CreateMul(idx, nbytes);
+                        ctx.builder.CreateMemCpy(lv, ctx.builder.CreateGEP(T_int8, data, elidx), nbytes, al);
+                        *ret = mark_julia_slot(lv, ety, tindex, tbaa_stack);
                     }
                     else {
                         *ret = typed_load(ctx, emit_arrayptr(ctx, ary, args[1]), idx, ety,
@@ -2648,7 +2664,8 @@ static bool emit_builtin_call(jl_codectx_t &ctx, jl_cgval_t *ret, jl_value_t *f,
         if (jl_is_array_type(aty_dt) && indexes_ok) {
             jl_value_t *ety = jl_tparam0(aty_dt);
             if (!jl_has_free_typevars(ety) && jl_subtype(vty, ety)) { // TODO: jn/foreigncall branch has a better predicate
-                bool isboxed = !jl_array_store_unboxed(ety);
+                size_t elsz = 0, al = 0;
+                bool isboxed = !jl_islayout_inline(ety, &elsz, &al);
                 if (isboxed)
                     ety = (jl_value_t*)jl_any_type;
                 jl_value_t *ndp = jl_tparam1(aty_dt);
@@ -2656,13 +2673,11 @@ static bool emit_builtin_call(jl_codectx_t &ctx, jl_cgval_t *ret, jl_value_t *f,
                     jl_cgval_t ary = emit_expr(ctx, args[1]);
                     ssize_t nd = jl_is_long(ndp) ? jl_unbox_long(ndp) : -1;
                     Value *idx = emit_array_nd_index(ctx, ary, args[1], nd, &args[3], nargs - 2);
-                    if (!isboxed && jl_datatype_size(ety) == 0) {
-                        // no-op, but emit expr for possible effects
-                        assert(jl_is_datatype(ety));
-                        emit_expr(ctx, args[2]);
+                    jl_cgval_t rhs = emit_expr(ctx, args[2]);
+                    if (!isboxed && jl_is_datatype(ety) && jl_datatype_size(ety) == 0) {
+                        // no-op
                     }
                     else {
-                        jl_cgval_t v = emit_expr(ctx, args[2]);
                         PHINode *data_owner = NULL; // owner object against which the write barrier must check
                         if (isboxed) { // if not boxed we don't need a write barrier
                             assert(ary.isboxed);
@@ -2697,12 +2712,37 @@ static bool emit_builtin_call(jl_codectx_t &ctx, jl_cgval_t *ret, jl_value_t *f,
                             data_owner->addIncoming(aryv, curBB);
                             data_owner->addIncoming(own_ptr, ownedBB);
                         }
-                        typed_store(ctx,
-                                    emit_arrayptr(ctx, ary, args[1], isboxed),
-                                    idx, v, ety,
-                                    !isboxed ? tbaa_arraybuf : tbaa_ptrarraybuf,
-                                    data_owner, 0,
-                                    false); // don't need to root the box if we had to make one since it's being stored in the array immediatly
+                        if (jl_is_uniontype(ety)) {
+                            Value *nbytes = ConstantInt::get(T_size, elsz);
+                            Value *data = emit_bitcast(ctx, emit_arrayptr(ctx, ary, args[1]), T_pint8);
+                            if (!(rhs.typ == jl_bottom_type)) {
+                                // compute tindex from rhs
+                                jl_cgval_t rhs_union = convert_julia_type(ctx, rhs, ety);
+                                Value *tindex = compute_tindex_unboxed(ctx, rhs_union, ety);
+                                tindex = ctx.builder.CreateNUWSub(tindex, ConstantInt::get(T_int8, 1));
+                                Value *selidx = ctx.builder.CreateMul(emit_arraylen_prim(ctx, ary), nbytes);
+                                selidx = ctx.builder.CreateAdd(selidx, idx);
+                                Value *ptindex = ctx.builder.CreateGEP(T_int8, data, selidx);
+                                ctx.builder.CreateStore(tindex, ptindex);
+                                if (jl_is_datatype(vty) && jl_datatype_size(vty) == 0) {
+
+                                }
+                                else {
+                                    // copy data
+                                    Value *elidx = ctx.builder.CreateMul(idx, nbytes);
+                                    Value *addr = ctx.builder.CreateGEP(T_int8, data, elidx);
+                                    emit_unionmove(ctx, addr, rhs, NULL, false, NULL);
+                                }
+                            }
+                        }
+                        else {
+                            typed_store(ctx,
+                                        emit_arrayptr(ctx, ary, args[1], isboxed),
+                                        idx, rhs, ety,
+                                        !isboxed ? tbaa_arraybuf : tbaa_ptrarraybuf,
+                                        data_owner, 0,
+                                        false); // don't need to root the box if we had to make one since it's being stored in the array immediatly
+                        }
                     }
                     *ret = ary;
                     JL_GC_POP();

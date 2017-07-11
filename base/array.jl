@@ -98,8 +98,36 @@ size(a::Array{<:Any,N}) where {N} = (@_inline_meta; ntuple(M -> size(a, M), Val(
 
 asize_from(a::Array, n) = n > ndims(a) ? () : (arraysize(a,n), asize_from(a, n+1)...)
 
+"""
+    Base.isbitsunion(::Type{T})
+
+Return whether a type is an "is-bits" Union type, meaning each type included in a Union is `isbits`.
+"""
+function isbitsunion end
+
+function isbitsunion(U::Union)
+    for u in Base.uniontypes(U)
+        isbits(u) || return false
+    end
+    return true
+end
+isbitsunion(T) = false
+
+"""
+    Base.bitsunionsize(U::Union)
+
+For a Union of `isbits` types, return the size of the largest type.
+"""
+function bitsunionsize(U::Union)
+    sz = 0
+    for u in Base.uniontypes(U)
+        sz = max(sz, sizeof(u))
+    end
+    return sz
+end
+
 length(a::Array) = arraylen(a)
-elsize(a::Array{T}) where {T} = isbits(T) ? sizeof(T) : sizeof(Ptr)
+elsize(a::Array{T}) where {T} = isbits(T) ? sizeof(T) : (isbitsunion(T) ? bitsunionsize(T) : sizeof(Ptr))
 sizeof(a::Array) = Core.sizeof(a)
 
 function isassigned(a::Array, i::Int...)
@@ -107,6 +135,19 @@ function isassigned(a::Array, i::Int...)
     ii = (sub2ind(size(a), i...) % UInt) - 1
     @boundscheck ii < length(a) % UInt || return false
     ccall(:jl_array_isassigned, Cint, (Any, UInt), a, ii) == 1
+end
+
+"""
+    Base.selectorbytes(A::Array{T, N}) -> Array{UInt8, N}
+
+For an Array with `isbits` Union elements, return the "selector bytes" that indicate the index
+of the type for each array element, i.e. the type of `A[1]` is `Base.uniontypes(eltype(A))[Base.selectorbytes(A)[1] + 1]`.
+**NOTE**: The actual array selector bytes are returned, meaning if individual elements are modified, the original array will reflect those changes.
+Setting selector bytes to invalid or out-of-bounds type indexes may corrupt the original array.
+"""
+function selectorbytes(a::Array{T, N}) where {T, N}
+    isbitsunion(T) || return UInt8[]
+    return unsafe_wrap(Array{UInt8, N}, convert(Ptr{UInt8}, pointer(a)) + length(a) * elsize(a), size(a))
 end
 
 ## copy ##
@@ -143,7 +184,7 @@ copy!(dest::Array{T}, src::Array{T}) where {T} = copy!(dest, 1, src, 1, length(s
 copy(a::T) where {T<:Array} = ccall(:jl_array_copy, Ref{T}, (Any,), a)
 
 function reinterpret(::Type{T}, a::Array{S,1}) where T where S
-    nel = Int(div(length(a)*sizeof(S),sizeof(T)))
+    nel = Int(div(length(a) * sizeof(S), sizeof(T)))
     # TODO: maybe check that remainder is zero?
     return reinterpret(T, a, (nel,))
 end
@@ -162,7 +203,7 @@ function reinterpret(::Type{T}, a::Array{S}, dims::NTuple{N,Int}) where T where 
     end
     isbits(T) || throwbits(S, T, T)
     isbits(S) || throwbits(S, T, S)
-    nel = div(length(a)*sizeof(S),sizeof(T))
+    nel = div(length(a) * sizeof(S), sizeof(T))
     if prod(dims) != nel
         _throw_dmrsa(dims, nel)
     end
