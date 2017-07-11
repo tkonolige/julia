@@ -380,13 +380,8 @@ void jl_compute_field_offsets(jl_datatype_t *st)
     if (st->size > sz)
         haspadding = 1;
     st->layout = jl_get_layout(nfields, alignm, haspadding, desc);
-<<<<<<< HEAD
     if (descsz >= jl_page_size) free(desc);
     jl_allocate_singleton_instance(st);
-=======
-    if (descsz >= jl_page_size)
-        free(desc);
->>>>>>> simple pass at giving union fields an optimized layout
     return;
  throw_ovf:
     if (descsz >= jl_page_size)
