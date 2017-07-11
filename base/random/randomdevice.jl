@@ -18,7 +18,8 @@ if Sys.iswindows()
     end
 
     function rand!(rd::RandomDevice, A::BoolBitIntegerArray)
-        ccall((:SystemFunction036, :Advapi32), stdcall, UInt8, (Ptr{Void}, UInt32), A, sizeof(A))
+        ccall((:SystemFunction036, :Advapi32), stdcall, UInt8, (Ptr{Void}, UInt32),
+              A, sizeof(A))
         A
     end
 else # !windows
@@ -26,7 +27,8 @@ else # !windows
         file::IOStream
         unlimited::Bool
 
-        RandomDevice(unlimited::Bool=true) = new(open(unlimited ? "/dev/urandom" : "/dev/random"), unlimited)
+        RandomDevice(unlimited::Bool=true) =
+            new(open(unlimited ? "/dev/urandom" : "/dev/random"), unlimited)
     end
 
     rand(rd::RandomDevice, T::BoolBitIntegerType)   = read( rd.file, T)
@@ -36,6 +38,7 @@ end # os-test
 """
     RandomDevice()
 
-Create a `RandomDevice` RNG object. Two such objects will always generate different streams of random numbers.
+Create a `RandomDevice` RNG object. Two such objects will always
+generate different streams of random numbers.
 """
 RandomDevice
