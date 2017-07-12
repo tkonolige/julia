@@ -157,11 +157,11 @@ Deprecated or removed
   * `fieldnames` now operates only on types. To get the names of fields in an object, use
     `fieldnames(typeof(x))` ([#22350]).
 
-  * `InexactError` and `DomainError` now take
+  * `InexactError`, `DomainError`, and `OverflowError` now take
     arguments. `InexactError(func::Symbol, type, -3)` now prints as
-    `ERROR: InexactError: func(type, -3)`, and `DomainError(val,
-    [msg])` prints as `ERROR: DomainError with val:\nmsg`. ([#20005],
-    [#22751])
+    "ERROR: InexactError: func(type, -3)", `DomainError(val,
+    [msg])` prints as "ERROR: DomainError with val:\nmsg", and `OverflowError(msg)` prints as "Error: OverflowError: msg". ([#20005],
+    [#22751], [#22761])
 
   * The operating system identification functions: `is_linux`, `is_bsd`, `is_apple`, `is_unix`,
     and `is_windows`, have been deprecated in favor of `Sys.islinux`, `Sys.isbsd`, `Sys.isapple`,
@@ -970,3 +970,5 @@ Command-line option changes
 [#22245]: https://github.com/JuliaLang/julia/issues/22245
 [#22310]: https://github.com/JuliaLang/julia/issues/22310
 [#22523]: https://github.com/JuliaLang/julia/issues/22523
+[#22751]: https://github.com/JuliaLang/julia/issues/22751
+[#22761]: https://github.com/JuliaLang/julia/issues/22761

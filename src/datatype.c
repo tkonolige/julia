@@ -347,7 +347,7 @@ void jl_compute_field_offsets(jl_datatype_t *st)
     return;
  throw_ovf:
     if (descsz >= jl_page_size) free(desc);
-    jl_throw(jl_overflow_exception);
+    jl_throw(jl_c_overflow_exception);
 }
 
 extern int jl_boot_file_loaded;

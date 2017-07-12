@@ -254,6 +254,7 @@ function showerror(io::IO, ex::SystemError)
     end
 end
 showerror(io::IO, ::DivideError) = print(io, "DivideError: integer division error")
+showerror(io::IO, ::Core.COverflowError) = print(io, "COverflowError:")
 showerror(io::IO, ::StackOverflowError) = print(io, "StackOverflowError:")
 showerror(io::IO, ::UndefRefError) = print(io, "UndefRefError: access to undefined reference")
 showerror(io::IO, ::EOFError) = print(io, "EOFError: read end of file")
@@ -268,6 +269,7 @@ showerror(io::IO, ex::KeyError) = print(io, "KeyError: key $(repr(ex.key)) not f
 showerror(io::IO, ex::InterruptException) = print(io, "InterruptException:")
 showerror(io::IO, ex::ArgumentError) = print(io, "ArgumentError: $(ex.msg)")
 showerror(io::IO, ex::AssertionError) = print(io, "AssertionError: $(ex.msg)")
+showerror(io::IO, ex::OverflowError) = print(io, "OverflowError: $(ex.msg)")
 
 function showerror(io::IO, ex::UndefVarError)
     if ex.var in [:UTF16String, :UTF32String, :WString, :utf16, :utf32, :wstring, :RepString]
