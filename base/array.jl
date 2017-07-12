@@ -2170,7 +2170,7 @@ by `new`.
 ```jldoctest
 julia> A = [1, 2, 3, 1];
 
-julia> replace!(isodd, A, 0, n=2)
+julia> replace!(isodd, A, 0, count=2)
 4-element Array{Int64,1}:
  0
  2
@@ -2242,7 +2242,7 @@ See also [`replace!`](@ref).
 # Example
 
 ```jldoctest
-julia> replace([1, 2, 1, 3], 1=>0, 2=>4; n=2)
+julia> replace([1, 2, 1, 3], 1=>0, 2=>4, count=2)
 4-element Array{Int64,1}:
  0
  4
@@ -2261,7 +2261,7 @@ Return a copy of collection `A` where all occurrences `x` for which
 
 # Example
 ```jldoctest
-julia> replace(isodd, [1, 2, 3, 1], 0, n=2)
+julia> replace(isodd, [1, 2, 3, 1], 0, count=2)
 4-element Array{Int64,1}:
  0
  2
