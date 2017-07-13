@@ -2149,7 +2149,7 @@ Set([0, 2, 3])
 replace!(A, old_new::Pair...; count::Integer=typemax(Int)) = _replace!(A, eltype(A), count, old_new)
 
 # we use this wrapper because using directly eltype(A) as the type
-# parameter below for Nullable degrades performances
+# parameter below for Nullable degrades performance
 function _replace!(A, ::Type{K}, count::Integer, old_new #=::Pair...=#) where {K}
     @inline function prednew(x)
         for o_n in old_new
@@ -2166,7 +2166,7 @@ end
 Replace all occurrences `x` in collection `A` for which `pred(x)` is true
 by `new`.
 
-# Example
+# Examples
 ```jldoctest
 julia> A = [1, 2, 3, 1];
 
@@ -2188,7 +2188,7 @@ For each value `x` in `A`, `prednew(x)` is called and must
 return a `Nullable` object. If it is not null, then the wrapped
 value will be used as a replacement for `x`.
 
-# Example
+# Examples
 ```jldoctest
 julia> replace!(Dict(1=>2, 3=>4)) do kv
            Nullable(first(kv)=>3, first(kv) < 3)
@@ -2214,7 +2214,7 @@ replace!(prednew::Callable, A; count::Integer=typemax(Int)) = _replace!(prednew,
 _replace(prednew::Callable, A, count::Integer) =
     _replace(prednew, A, clamp(count, typemin(Int), typemax(Int)) % Int)
 
-# we use this _replace wrapper because otherwise the performances are
+# we use this _replace wrapper because otherwise the performance is
 # degraded when forwarding the keyword argument
 function _replace!(prednew::Callable, A::AbstractArray, count::Int)
     count < 0 && throw(DomainError())
@@ -2223,7 +2223,7 @@ function _replace!(prednew::Callable, A::AbstractArray, count::Int)
     @inbounds for i in eachindex(A)
         y = prednew(A[i])
         if !isnull(y)
-            A[i] = get(y)
+            A[i] = unsafe_get(y)
             c += 1
             c == count && break
         end
@@ -2239,8 +2239,7 @@ all occurrences of `old` are replaced by `new`.
 If `count` is specified, then replace at most `count` occurrences in total.
 See also [`replace!`](@ref).
 
-# Example
-
+# Examples
 ```jldoctest
 julia> replace([1, 2, 1, 3], 1=>0, 2=>4, count=2)
 4-element Array{Int64,1}:
@@ -2259,7 +2258,7 @@ replace(A, old_new::Pair...; count::Integer=typemax(Int)) =
 Return a copy of collection `A` where all occurrences `x` for which
 `pred(x)` is true are replaced by `new`.
 
-# Example
+# Examples
 ```jldoctest
 julia> replace(isodd, [1, 2, 3, 1], 0, count=2)
 4-element Array{Int64,1}:
@@ -2279,7 +2278,7 @@ Return a copy of `A` where for each value `x` in `A`, `prednew(x)` is called
 and must return a `Nullable` object. If it is not null, then the wrapped
 value will be used as a replacement for `x`.
 
-# Example
+# Examples
 ```
 julia> replace(Dict(1=>2, 3=>4)) do kv
            Nullable(first(kv)=>3, first(kv) < 3)
