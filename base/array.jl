@@ -2217,7 +2217,7 @@ _replace(prednew::Callable, A, count::Integer) =
 # we use this _replace wrapper because otherwise the performance is
 # degraded when forwarding the keyword argument
 function _replace!(prednew::Callable, A::AbstractArray, count::Int)
-    count < 0 && throw(DomainError())
+    count < 0 && throw(DomainError(count, "`count` must not be negative"))
     count == 0 && return A
     c = 0
     @inbounds for i in eachindex(A)

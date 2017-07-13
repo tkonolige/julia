@@ -429,7 +429,7 @@ askey(k, ::Associative) = k.first
 askey(k, ::AbstractSet) = k
 
 function _replace!(prednew::Callable, A::Union{Associative,AbstractSet}, count::Int)
-    count < 0 && throw(DomainError())
+    count < 0 && throw(DomainError(count, "`count` must not be negative"))
     count == 0 && return A
     repl = Pair{eltype(A),eltype(A)}[]
     c = 0
