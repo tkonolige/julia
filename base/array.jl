@@ -2279,7 +2279,7 @@ and must return a `Nullable` object. If it is not null, then the wrapped
 value will be used as a replacement for `x`.
 
 # Examples
-```
+```jldoctest
 julia> replace(Dict(1=>2, 3=>4)) do kv
            Nullable(first(kv)=>3, first(kv) < 3)
        end
