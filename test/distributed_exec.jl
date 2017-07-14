@@ -10,7 +10,7 @@ include("testenv.jl")
         1
     end
 
-addprocs_with_testenv(4)
+addprocs_with_testenv(4; lazy=false)
 @test nprocs() == 5
 
 function reuseport_tests()

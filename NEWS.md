@@ -63,6 +63,9 @@ This section lists changes that do not have deprecation warnings.
   * The `Diagonal` type definition has changed from `Diagonal{T}` to
     `Diagonal{T,V<:AbstractVector{T}}` ([#22718]).
 
+  * Worker-worker connections are setup lazily for a `:all_to_all` topology. Use keyword
+    arg `lazy=false` to force all connections to be setup during a `addprocs` call. ([#22814])
+
 Library improvements
 --------------------
 
