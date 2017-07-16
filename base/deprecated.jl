@@ -1569,6 +1569,9 @@ end
 
 @deprecate String(io::GenericIOBuffer) String(take!(copy(io)))
 
+# issue #11310
+# remove "parametric method syntax" deprecation in julia-syntax.scm
+
 # END 0.7 deprecations
 
 # BEGIN 1.0 deprecations
