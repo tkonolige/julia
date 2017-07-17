@@ -25,6 +25,8 @@ abstract type FloatInterval end
 mutable struct CloseOpen <: FloatInterval end
 mutable struct Close1Open2 <: FloatInterval end
 
+const BitFloatType = Union{Type{Float16},Type{Float32},Type{Float64}}
+
 function __init__()
     try
         srand()
@@ -35,16 +37,11 @@ function __init__()
 end
 
 include("RNGs.jl")
-include("seeding.jl")
-include("numbers.jl")
-include("ranges.jl")
-include("collections.jl")
-include("arrays.jl")
+include("generation.jl")
 include("normal.jl")
-include("uuid.jl")
-include("sequences.jl")
+include("misc.jl")
 
-## rand & rand! docstrings
+## rand & rand! & srand docstrings
 
 """
     rand([rng=GLOBAL_RNG], [S], [dims...])
@@ -107,5 +104,36 @@ julia> rand!(rng, zeros(5))
 ```
 """
 rand!
+
+"""
+    srand([rng=GLOBAL_RNG], seed) -> rng
+    srand([rng=GLOBAL_RNG]) -> rng
+
+Reseed the random number generator. If a `seed` is provided, the RNG will give a
+reproducible sequence of numbers, otherwise Julia will get entropy from the system. For
+`MersenneTwister`, the `seed` may be a non-negative integer or a vector of [`UInt32`](@ref)
+integers. `RandomDevice` does not support seeding.
+
+# Examples
+```jldoctest
+julia> srand(1234);
+
+julia> x1 = rand(2)
+2-element Array{Float64,1}:
+ 0.590845
+ 0.766797
+
+julia> srand(1234);
+
+julia> x2 = rand(2)
+2-element Array{Float64,1}:
+ 0.590845
+ 0.766797
+
+julia> x1 == x2
+true
+```
+"""
+srand
 
 end # module

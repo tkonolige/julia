@@ -165,7 +165,7 @@ for randfun in [:randn, :randexp]
     randfun! = Symbol(randfun, :!)
     @eval begin
         # scalars
-        $randfun(rng::AbstractRNG, T::Union{Type{Float16},Type{Float32},Type{Float64}}) =
+        $randfun(rng::AbstractRNG, T::BitFloatType) =
             convert(T, $randfun(rng))
         $randfun(::Type{T}) where {T} = $randfun(GLOBAL_RNG, T)
 
