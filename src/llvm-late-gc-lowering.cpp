@@ -285,7 +285,8 @@ namespace llvm {
     void initializeLateLowerGCFramePass(PassRegistry &Registry);
 }
 
-extern std::pair<MDNode*,MDNode*> tbaa_make_child(const char *name, MDNode *parent=nullptr, bool isConstant=false);
+extern std::pair<MDNode*,MDNode*> tbaa_make_child(const char *name, MDNode *parent=nullptr,
+                                                  bool isConstant=false);
 struct LateLowerGCFrame: public FunctionPass {
     static char ID;
     LateLowerGCFrame() : FunctionPass(ID)
@@ -313,7 +314,8 @@ private:
     Function *pointer_from_objref_func;
     CallInst *ptlsStates;
 
-    void MaybeNoteDef(State &S, BBState &BBS, Value *Def, const std::vector<int> &SafepointsSoFar, int RefinedPtr = -2);
+    void MaybeNoteDef(State &S, BBState &BBS, Value *Def,
+                      const std::vector<int> &SafepointsSoFar, int RefinedPtr = -2);
     void NoteUse(State &S, BBState &BBS, Value *V, BitVector &Uses);
     void NoteUse(State &S, BBState &BBS, Value *V) {
         NoteUse(S, BBS, V, BBS.UpExposedUses);
@@ -331,9 +333,12 @@ private:
     void PushGCFrame(AllocaInst *gcframe, unsigned NRoots, Instruction *InsertAfter);
     void PopGCFrame(AllocaInst *gcframe, Instruction *InsertBefore);
     std::vector<int> ColorRoots(const State &S);
-    void PlaceGCFrameStore(State &S, unsigned R, unsigned MinColorRoot, const std::vector<int> &Colors, Value *GCFrame, Instruction *InsertionPoint);
-    void PlaceGCFrameStores(Function &F, State &S, unsigned MinColorRoot, const std::vector<int> &Colors, Value *GCFrame);
-    void PlaceRootsAndUpdateCalls(Function &F, std::vector<int> &Colors, State &S, std::map<Value *, std::pair<int, int>>);
+    void PlaceGCFrameStore(State &S, unsigned R, unsigned MinColorRoot, const std::vector<int> &Colors,
+                           Value *GCFrame, Instruction *InsertionPoint);
+    void PlaceGCFrameStores(Function &F, State &S, unsigned MinColorRoot,
+                            const std::vector<int> &Colors, Value *GCFrame);
+    void PlaceRootsAndUpdateCalls(Function &F, std::vector<int> &Colors, State &S,
+                                  std::map<Value *, std::pair<int, int>>);
     bool doInitialization(Module &M) override;
     bool runOnFunction(Function &F) override;
     Instruction *get_pgcstack(Instruction *ptlsStates);
@@ -460,8 +465,8 @@ int LateLowerGCFrame::Number(State &S, Value *V) {
         return it->second;
     int Number;
     if (isa<Constant>(CurrentV) || isa<Argument>(CurrentV) ||
-        ((isa<AllocaInst>(CurrentV) || isa<AddrSpaceCastInst>(CurrentV)) &&
-         getValueAddrSpace(CurrentV) != AddressSpace::Tracked)) {
+            ((isa<AllocaInst>(CurrentV) || isa<AddrSpaceCastInst>(CurrentV)) &&
+             getValueAddrSpace(CurrentV) != AddressSpace::Tracked)) {
         // We know this is rooted in the parent
         Number = -1;
     } else if (isa<SelectInst>(CurrentV) && getValueAddrSpace(CurrentV) != AddressSpace::Tracked) {
@@ -496,9 +501,9 @@ std::vector<int> LateLowerGCFrame::NumberVector(State &S, Value *V) {
     if (it != S.AllVectorNumbering.end())
         return it->second;
     if (isa<Constant>(CurrentV) ||
-        ((isa<Argument>(CurrentV) || isa<AllocaInst>(CurrentV) ||
-         isa<AddrSpaceCastInst>(CurrentV)) &&
-         getValueAddrSpace(CurrentV) != AddressSpace::Tracked)) {
+            ((isa<Argument>(CurrentV) || isa<AllocaInst>(CurrentV) ||
+             isa<AddrSpaceCastInst>(CurrentV)) &&
+             getValueAddrSpace(CurrentV) != AddressSpace::Tracked)) {
         S.AllVectorNumbering[V] = std::vector<int>{};
     }
     /* We (the frontend) don't insert either of these, but it would be legal -
@@ -553,7 +558,8 @@ static void NoteDef(State &S, BBState &BBS, int Num, const std::vector<int> &Saf
     }
 }
 
-void LateLowerGCFrame::MaybeNoteDef(State &S, BBState &BBS, Value *Def, const std::vector<int> &SafepointsSoFar, int RefinedPtr) {
+void LateLowerGCFrame::MaybeNoteDef(State &S, BBState &BBS, Value *Def,
+                                    const std::vector<int> &SafepointsSoFar, int RefinedPtr) {
     int Num = -1;
     Type *RT = Def->getType();
     if (isSpecialPtr(RT)) {
@@ -633,10 +639,11 @@ void RecursivelyVisit(callback f, Value *V) {
         if (isa<VisitInst>(TheUser))
             f(VU);
         if (isa<CallInst>(TheUser) || isa<LoadInst>(TheUser) ||
-            isa<SelectInst>(TheUser) || isa<PHINode>(TheUser) ||
-            isa<StoreInst>(TheUser))
+                isa<SelectInst>(TheUser) || isa<PHINode>(TheUser) ||
+                isa<StoreInst>(TheUser))
             continue;
-        if (isa<GetElementPtrInst>(TheUser) || isa<BitCastInst>(TheUser) || isa<AddrSpaceCastInst>(TheUser)) {
+        if (isa<GetElementPtrInst>(TheUser) || isa<BitCastInst>(TheUser) ||
+                isa<AddrSpaceCastInst>(TheUser)) {
             RecursivelyVisit<VisitInst, callback>(f, TheUser);
             continue;
         }
@@ -750,8 +757,8 @@ State LateLowerGCFrame::LocalScan(Function &F) {
                 if (isLoadFromImmut(LI) && isSpecialPtr(LI->getPointerOperand()->getType())) {
                     RefinedPtr = Number(S, LI->getPointerOperand());
                 } else if (LI->getType()->isPointerTy() &&
-                    isSpecialPtr(LI->getType()) &&
-                    LooksLikeFrameRef(LI->getPointerOperand())) {
+                           isSpecialPtr(LI->getType()) &&
+                           LooksLikeFrameRef(LI->getPointerOperand())) {
                     // Loads from a jlcall argument array
                     RefinedPtr = -1;
                 }
@@ -1047,7 +1054,8 @@ std::vector<int> LateLowerGCFrame::ColorRoots(const State &S) {
 
 Instruction *LateLowerGCFrame::get_pgcstack(Instruction *ptlsStates)
 {
-    Constant *offset = ConstantInt::getSigned(T_int32, offsetof(jl_tls_states_t, pgcstack) / sizeof(void*));
+    Constant *offset = ConstantInt::getSigned(T_int32,
+        offsetof(jl_tls_states_t, pgcstack) / sizeof(void*));
     return GetElementPtrInst::Create(nullptr,
                                      ptlsStates,
                                      ArrayRef<Value*>(offset),
@@ -1057,13 +1065,13 @@ Instruction *LateLowerGCFrame::get_pgcstack(Instruction *ptlsStates)
 void LateLowerGCFrame::PushGCFrame(AllocaInst *gcframe, unsigned NRoots, Instruction *InsertAfter) {
     IRBuilder<> builder(gcframe->getContext());
     builder.SetInsertPoint(&*(++BasicBlock::iterator(InsertAfter)));
-    Instruction *inst =
-        builder.CreateStore(ConstantInt::get(T_size, NRoots << 1),
-                          builder.CreateBitCast(builder.CreateConstGEP1_32(gcframe, 0), T_size->getPointerTo()));
+    Instruction *inst = builder.CreateStore(ConstantInt::get(T_size, NRoots << 1),
+        builder.CreateBitCast(builder.CreateConstGEP1_32(gcframe, 0), T_size->getPointerTo()));
     inst->setMetadata(llvm::LLVMContext::MD_tbaa, tbaa_gcframe);
     Value *pgcstack = builder.Insert(get_pgcstack(ptlsStates));
     inst = builder.CreateStore(builder.CreateLoad(pgcstack),
-                               builder.CreatePointerCast(builder.CreateConstGEP1_32(gcframe, 1), PointerType::get(T_ppjlvalue,0)));
+                               builder.CreatePointerCast(builder.CreateConstGEP1_32(gcframe, 1),
+                                                         PointerType::get(T_ppjlvalue,0)));
     inst->setMetadata(llvm::LLVMContext::MD_tbaa, tbaa_gcframe);
     builder.CreateStore(gcframe, builder.CreateBitCast(pgcstack,
         PointerType::get(PointerType::get(T_prjlvalue, 0), 0)));
@@ -1206,7 +1214,8 @@ static void AddInPredLiveOuts(BasicBlock *BB, BitVector &LiveIn, State &S)
     }
 }
 
-void LateLowerGCFrame::PlaceGCFrameStore(State &S, unsigned R, unsigned MinColorRoot, const std::vector<int> &Colors, Value *GCFrame, Instruction *InsertionPoint) {
+void LateLowerGCFrame::PlaceGCFrameStore(State &S, unsigned R, unsigned MinColorRoot,
+        const std::vector<int> &Colors, Value *GCFrame, Instruction *InsertionPoint) {
     Value *Val = GetPtrForNumber(S, R, InsertionPoint);
     Value *args[1] = {
         ConstantInt::get(T_int32, Colors[R]+MinColorRoot)
@@ -1222,7 +1231,8 @@ void LateLowerGCFrame::PlaceGCFrameStore(State &S, unsigned R, unsigned MinColor
     new StoreInst(Val, gep, InsertionPoint);
 }
 
-void LateLowerGCFrame::PlaceGCFrameStores(Function &F, State &S, unsigned MinColorRoot, const std::vector<int> &Colors, Value *GCFrame)
+void LateLowerGCFrame::PlaceGCFrameStores(Function &F, State &S, unsigned MinColorRoot,
+                                          const std::vector<int> &Colors, Value *GCFrame)
 {
     for (auto &BB : F) {
         if (!S.BBStates[&BB].HasSafepoint) {
@@ -1231,7 +1241,7 @@ void LateLowerGCFrame::PlaceGCFrameStores(Function &F, State &S, unsigned MinCol
         BitVector LiveIn;
         AddInPredLiveOuts(&BB, LiveIn, S);
         for(auto rit = S.BBStates[&BB].Safepoints.rbegin();
-              rit != S.BBStates[&BB].Safepoints.rend(); ++rit ) {
+                rit != S.BBStates[&BB].Safepoints.rend(); ++rit ) {
             // Find those that become live, but were not before
             BitVector NowLive = S.LiveSets[*rit];
             LiveIn.resize(NowLive.size(), 0);
@@ -1239,14 +1249,15 @@ void LateLowerGCFrame::PlaceGCFrameStores(Function &F, State &S, unsigned MinCol
             NowLive &= LiveIn;
             for (int Idx = NowLive.find_first(); Idx >= 0; Idx = NowLive.find_next(Idx)) {
                 PlaceGCFrameStore(S, Idx, MinColorRoot, Colors, GCFrame,
-                  S.ReverseSafepointNumbering[*rit]);
+                    S.ReverseSafepointNumbering[*rit]);
             }
             LiveIn = S.LiveSets[*rit];
         }
     }
 }
 
-void LateLowerGCFrame::PlaceRootsAndUpdateCalls(Function &F, std::vector<int> &Colors, State &S, std::map<Value *, std::pair<int, int>>) {
+void LateLowerGCFrame::PlaceRootsAndUpdateCalls(Function &F, std::vector<int> &Colors, State &S,
+                                                std::map<Value *, std::pair<int, int>>) {
     int MaxColor = -1;
     for (auto C : Colors)
         if (C > MaxColor)
@@ -1257,7 +1268,7 @@ void LateLowerGCFrame::PlaceRootsAndUpdateCalls(Function &F, std::vector<int> &C
         // Create GC Frame
         AllocaInst *gcframe = new AllocaInst(T_prjlvalue,
 #if JL_LLVM_VERSION >= 50000
-           0,
+            0,
 #endif
         ConstantInt::get(T_int32, NRoots+2), "gcframe");
         gcframe->insertBefore(&*F.getEntryBlock().begin());
@@ -1265,7 +1276,8 @@ void LateLowerGCFrame::PlaceRootsAndUpdateCalls(Function &F, std::vector<int> &C
         BitCastInst *tempSlot_i8 = new BitCastInst(gcframe, Type::getInt8PtrTy(F.getContext()), "");
         tempSlot_i8->insertAfter(gcframe);
         Type *argsT[2] = {tempSlot_i8->getType(), T_int32};
-        Function *memset = Intrinsic::getDeclaration(F.getParent(), Intrinsic::memset, makeArrayRef(argsT));
+        Function *memset = Intrinsic::getDeclaration(F.getParent(), Intrinsic::memset,
+                                                     makeArrayRef(argsT));
         Value *args[5] = {
             tempSlot_i8, // dest
             ConstantInt::get(Type::getInt8Ty(F.getContext()), 0), // val
@@ -1283,7 +1295,8 @@ void LateLowerGCFrame::PlaceRootsAndUpdateCalls(Function &F, std::vector<int> &C
             Value *args[1] = {
                 ConstantInt::get(T_int32, AllocaSlot++)
             };
-            GetElementPtrInst *gep = GetElementPtrInst::Create(T_prjlvalue, gcframe, makeArrayRef(args));
+            GetElementPtrInst *gep = GetElementPtrInst::Create(T_prjlvalue, gcframe,
+                                                               makeArrayRef(args));
             gep->insertAfter(gcframe);
             gep->takeName(AI);
             // Check for lifetime intrinsics on this alloca, we can't keep them
@@ -1327,7 +1340,8 @@ bool LateLowerGCFrame::runOnFunction(Function &F) {
         T_ppjlvalue =
             cast<PointerType>(functype->getReturnType())->getElementType();
         auto T_pjlvalue = cast<PointerType>(T_ppjlvalue)->getElementType();
-        T_prjlvalue = PointerType::get(cast<PointerType>(T_pjlvalue)->getElementType(), AddressSpace::Tracked);
+        T_prjlvalue = PointerType::get(cast<PointerType>(T_pjlvalue)->getElementType(),
+                                       AddressSpace::Tracked);
     } else {
         return CleanupIR(F);
     }
@@ -1335,7 +1349,7 @@ bool LateLowerGCFrame::runOnFunction(Function &F) {
     T_int32 = Type::getInt32Ty(F.getContext());
     ptlsStates = nullptr;
     for (auto I = F.getEntryBlock().begin(), E = F.getEntryBlock().end();
-         ptls_getter && I != E; ++I) {
+            ptls_getter && I != E; ++I) {
         if (CallInst *callInst = dyn_cast<CallInst>(&*I)) {
             if (callInst->getCalledValue() == ptls_getter) {
                 ptlsStates = callInst;
