@@ -1581,6 +1581,12 @@ end
 
 @deprecate String(io::GenericIOBuffer) String(take!(copy(io)))
 
+# issue #13079
+# in julia-parser.scm:
+#     move prec-bitshift after prec-rational
+#     remove parse-with-chains-warn and bitshift-warn
+# update precedence table in doc/src/manual/mathematical-operations.md
+
 # END 0.7 deprecations
 
 # BEGIN 1.0 deprecations
