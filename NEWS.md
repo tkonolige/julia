@@ -63,6 +63,11 @@ This section lists changes that do not have deprecation warnings.
   * The `Diagonal` type definition has changed from `Diagonal{T}` to
     `Diagonal{T,V<:AbstractVector{T}}` ([#22718]).
 
+  * On a cluster, all files are now loaded from the local file system rather than node 1 ([#22588]).
+    To load the same file everywhere from node 1, one possible alternative is to broadcast a call to `include_string`:
+    `@everywhere include_string(Main, $(read("filename", String)), "filename")`.
+    Improving upon this API is left as an opportunity for packages.
+
 Library improvements
 --------------------
 
