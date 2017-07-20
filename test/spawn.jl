@@ -298,16 +298,22 @@ let out = Pipe(), echo = `$exename --startup-file=no -e 'print(STDOUT, " 1\t", r
         @test iswritable(out)
         close(out.in)
         @test !isopen(out.in)
-        Sys.iswindows() || @test !isopen(out.out) # it takes longer to propagate EOF through the Windows event system
-        @test_throws ArgumentError write(out, "now closed error")
-        @test isreadable(out)
         @test !iswritable(out)
+        if !Sys.iswindows()
+            # on UNIX, we expect the pipe buffer is big enough that the write queue was immediately emptied
+            # and so we should already be notified of EPIPE on out.out by now
+            # it takes longer to propagate EOF through the Windows event system
+            # since it appears to be unwilling to buffer as much data
+            @test !isopen(out.out)
+        end
+        @test_throws ArgumentError write(out, "now closed error")
         if Sys.iswindows()
-            # WINNT kernel does not provide a fast mechanism for async propagation
+            # WINNT kernel appears to not provide a fast mechanism for async propagation
             # of EOF for a blocking stream, so just wait for it to catch up.
             # This shouldn't take much more than 32ms.
             Base.wait_close(out)
         end
+        @test !isreadable(out)
         @test !isopen(out)
     end
     wait(ready) # wait for writer task to be ready before using `out`
@@ -468,4 +474,19 @@ let c = `ls -l "foo bar"`
     @test eltype(c) == String
     @test length(c) == 3
     @test eachindex(c) == 1:3
+end
+
+# Deadlock in spawning a cmd (#22832)
+let stdout = Pipe(), stdin = Pipe()
+    Base.link_pipe(stdout, julia_only_read=true)
+    Base.link_pipe(stdin, julia_only_write=true)
+    p = spawn(pipeline(catcmd, stdin=stdin, stdout=stdout, stderr=DevNull))
+    @async begin # feed cat with 2 MB of data (zeros)
+        write(stdin, zeros(UInt8, 1048576 * 2))
+        close(stdin)
+    end
+    sleep(0.5) # give cat a chance to fill the write buffer for stdout
+    close(stdout.in) # make sure we can still close the write end
+    @test sizeof(readstring(stdout)) == 1048576 * 2 # make sure we get all the data
+    success(p)
 end
